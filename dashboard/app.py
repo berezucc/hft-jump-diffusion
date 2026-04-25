@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from hft_jd import ModelParams, ProblemParams, simulate, solve_acquisition, solve_liquidation
 from hft_jd.coefficients import (
@@ -203,17 +204,50 @@ sim_result = _sim(sol, n_paths, seed, sig_key)
 # ---------------------------------------------------------------------------
 
 st.subheader("Optimal trading speed scaling, h(t, S)")
-st.caption(
-    "Reduced HJB solution. ν*(t,S,q) = q·h(t,S)/κ. Hotter colours ⇒ faster trading."
+
+with st.expander("How to read this chart", expanded=False):
+    st.markdown(
+        """
+- **What `h` means.** The optimal trading speed is **ν\\*(t, S, q) = q · h(t, S) / κ**.
+  So `h` is "urgency per remaining unit". Bigger `h` ⇒ trade faster.
+- **Range.** `h` is bounded above by the terminal/boundary penalty **α**
+  (yellow). Far from the boundaries it's near-zero (purple) — the agent has
+  no reason to rush.
+- **Two bright strips:**
+    - The **top edge (t→T)** lights up because the agent must dump remaining
+      inventory at the terminal penalty, so it accelerates as time runs out.
+    - The **right edge (S→S\\_max)** for acquisition (or **left edge S→S\\_min**
+      for liquidation) lights up because the price is about to hit the
+      stopping cap/floor — same urgency to finish.
+- **Why most of the plot is dark.** The grid spans the full
+  [S\\_min, S\\_max] domain but interesting variation is concentrated near
+  S₀ and the active boundary. Toggle "Zoom to active region" below to focus
+  there (mirrors Fig. 2 / Fig. 3 of the paper).
+"""
+    )
+
+zoom = st.checkbox(
+    "Zoom to active region (matches paper's Fig. 2 / 3)", value=True
 )
+view_grid = sol.S_grid
+view_h = sol.h
+if zoom:
+    if kind == "acquisition":
+        lo, hi = sol.problem.S0, sol.problem.S_max
+    else:
+        lo, hi = sol.problem.S_min, sol.problem.S0
+    mask = (sol.S_grid >= lo) & (sol.S_grid <= hi)
+    view_grid = sol.S_grid[mask]
+    view_h = sol.h[:, mask]
 
 heatmap = go.Figure(
     data=go.Heatmap(
-        z=sol.h,
-        x=sol.S_grid,
+        z=view_h,
+        x=view_grid,
         y=sol.t_grid,
         colorscale="Viridis",
         colorbar=dict(title="h"),
+        hovertemplate="S=%{x:.4f}<br>t=%{y:.3f}<br>h=%{z:.4g}<extra></extra>",
     )
 )
 heatmap.update_layout(
@@ -223,6 +257,61 @@ heatmap.update_layout(
     yaxis_title="Time t",
 )
 st.plotly_chart(heatmap, use_container_width=True)
+
+st.caption(
+    f"**At your current parameters:** h(0, S₀) = {sol.value(0.0, sol.problem.S0):.4g}"
+    f" → at t=0 with q=N units left, optimal trading speed ν\\* = "
+    f"{sol.problem.N_units * sol.value(0.0, sol.problem.S0) / sol.problem.kappa:.2f} units/unit-time. "
+    f"Compare to the cap of α/κ = {sol.problem.alpha / sol.problem.kappa:.2f} units/unit-time."
+)
+
+# ---------------------------------------------------------------------------
+# Compare across ς values (paper's Fig. 2 / 3 layout)
+# ---------------------------------------------------------------------------
+
+with st.expander("Vary ς — paper's Fig. 2 / Fig. 3 panel", expanded=False):
+    st.markdown(
+        "Re-solve the PDE for four ς values, holding everything else fixed. "
+        "Top-left ⇒ pure-diffusion benchmark (Cartea et al. 2015). Bottom-right "
+        "⇒ stronger jump component."
+    )
+    varsigma_options = [0.0, max(0.05, varsigma * 0.5), varsigma, varsigma * 1.5]
+    panel = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=[f"ς = {v:.4f}" for v in varsigma_options],
+        horizontal_spacing=0.10,
+        vertical_spacing=0.18,
+    )
+    for idx, v in enumerate(varsigma_options):
+        sol_v = _solve(
+            kind, T, int(N_units), kappa, alpha, phi, S0, S_min, S_max,
+            sigma, sigma_bar, v, N_t, N_S,
+        )
+        if zoom:
+            mask = (sol_v.S_grid >= lo) & (sol_v.S_grid <= hi)
+            zg = sol_v.S_grid[mask]
+            zh = sol_v.h[:, mask]
+        else:
+            zg, zh = sol_v.S_grid, sol_v.h
+        r, c = (idx // 2) + 1, (idx % 2) + 1
+        panel.add_trace(
+            go.Heatmap(
+                z=zh,
+                x=zg,
+                y=sol_v.t_grid,
+                colorscale="Viridis",
+                zmin=0,
+                zmax=alpha,
+                showscale=(idx == 3),
+                colorbar=dict(title="h"),
+            ),
+            row=r,
+            col=c,
+        )
+    panel.update_layout(height=620, margin=dict(l=40, r=20, t=40, b=40))
+    panel.update_xaxes(title_text="S")
+    panel.update_yaxes(title_text="t")
+    st.plotly_chart(panel, use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Middle row: sample paths + speed
