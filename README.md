@@ -4,16 +4,16 @@ Reference Python implementation of:
 
 > **Lalor & Swishchuk (2025).** *Algorithmic and High-Frequency Trading Problems for Semi-Markov and Hawkes Jump-Diffusion Models.* arXiv:2409.12776v2.
 
-The paper extends the optimal acquisition/liquidation problems of Cartea, Jaimungal & Penalva (2015) with non-Markovian jump dynamics — modelled via Semi-Markov or Hawkes processes — and solved through a diffusion approximation. This package gives you the math in clean, modular, tested code, plus a Streamlit dashboard for exploring the solutions.
+The paper extends the optimal acquisition/liquidation problems of Cartea, Jaimungal & Penalva (2015) with non-Markovian jump dynamics - modelled via Semi-Markov or Hawkes processes - and solved through a diffusion approximation. This package gives you the math in clean, modular, tested code, plus a Streamlit dashboard for exploring the solutions.
 
 ## What's in the box
 
-- `hft_jd.coefficients` — closed-form coefficients (η, σ̄, ς) for both Semi-Markov and Hawkes cases.
-- `hft_jd.pde` — IMEX finite-difference solver for the reduced PDE in `h(t, S)` for both acquisition (price cap) and liquidation (price floor) problems.
-- `hft_jd.simulation` — Monte-Carlo strategy simulation: price paths, inventory, cash, execution prices.
-- `hft_jd.policy` — Optimal feedback control `ν*(t, S, q) = q · h(t, S) / κ`.
-- `dashboard/app.py` — Streamlit UI.
-- `tests/` — pytest suite covering coefficients, PDE invariants, and simulation properties.
+- `hft_jd.coefficients` - closed-form coefficients (η, σ̄, ς) for both Semi-Markov and Hawkes cases.
+- `hft_jd.pde` - IMEX finite-difference solver for the reduced PDE in `h(t, S)` for both acquisition (price cap) and liquidation (price floor) problems.
+- `hft_jd.simulation` - Monte-Carlo strategy simulation: price paths, inventory, cash, execution prices.
+- `hft_jd.policy` - Optimal feedback control `ν*(t, S, q) = q · h(t, S) / κ`.
+- `dashboard/app.py` - Streamlit UI.
+- `tests/` - pytest suite covering coefficients, PDE invariants, and simulation properties.
 
 ## Install
 

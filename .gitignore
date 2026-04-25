@@ -13,3 +13,8 @@ venv/
 .DS_Store
 .ipynb_checkpoints/
 *.swp
+
+# Local knowledge base / personal notes (not for upstream)
+KNOWLEDGE_BASE.md
+notes/
+
